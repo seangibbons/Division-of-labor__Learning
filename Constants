@@ -1,0 +1,27 @@
+'''
+Three Good Model 
+Constants
+Division of labor
+Vipin P. Veetil
+6/16/2014
+Windows 
+Python
+'''
+
+from __future__ import division
+import math
+
+numPlayers=200
+periods=5000
+
+
+
+
+typesGoods=[0,1,2]
+
+shock_howMany=1
+
+def sigmoidFunction(x):
+     denominator=1+math.e**(-0.01*x)
+     value=1/denominator
+     return value
