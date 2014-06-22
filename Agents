@@ -1,0 +1,151 @@
+'''
+Three Good Model
+Players
+Division of labor
+Vipin P. Veetil
+6/16/2014
+Windows 
+Python
+'''
+from __future__ import division
+
+import constants as c
+import random
+import operator
+import copy
+
+class Player(object):
+    def __init__(self, id="noID"):
+        # these exponents characterize each agents efficiency at producing the three goods
+        self.exponents=[random.randint(0,1),random.randint(0,1),random.randint(0,1)]
+        
+        # an agents type is given the good she produces most efficiently
+        self.myType=self.exponents.index(max(self.exponents))        
+    
+        # agents are endowed with one unit of the basic good
+        # think of this as sun light 
+        # this basic good can be used to produce all other goods
+        self.goodBasic=1.0
+        
+        # this is where an agent stores the good she produces
+        # once an agents eats these goods, the store is empited
+        self.store=[0.0,0.0,0.0]
+        
+        # an agent specializes partially if she produces two goods and recieves one good from another agent
+        self.specialize_partial=False
+        
+        #an agent specializes completely if she produes one good and recieves two goods from other agents
+        self.specialize_complete=False
+        
+        # record the fitness an agent recieves every period by consuming the goods she has in the store
+        self.fitnessHistory=[]
+        
+        # type change count
+        self.change_count=0
+
+
+class simplePlayer(Player):
+    #initialize a player
+    def __init__(self):
+        Player.__init__(self)
+    
+    # functions that define how she produces goods
+    # the function takes list of partner as an argument
+    # the number of partners decides how much an agent specializes
+    def produce(self,listOf_partners): 
+      
+        # An agent is always a partner of herself, so her number of partners is at minimum 1
+        # If an agent has three partners
+        # then she full specializes and produces only one good
+        #print 'store before production', self.store
+      
+        if sum(listOf_partners)==3:
+            # produce the good in which an agent specializes
+            self.store[self.myType]=self.goodBasic*c.sigmoidFunction(self.exponents[self.myType])
+            
+            
+            self.specialize_partial=False            
+            self.specialize_complete=True
+            
+            # the agent becomes more efficient at producing this good
+            self.exponents[self.myType]=self.exponents[self.myType]+1
+            
+            # the agent becomes less efficient at producing other goods
+            goods=[0,1,2]
+            goods.remove(self.myType)
+            for i in goods:
+                self.exponents[i]=self.exponents[i]-(1/2)
+        
+        # If an agent has one partner, then she is self-sufficient
+        # the one partner is herself        
+        elif sum(listOf_partners)==1:
+            # she produce all the three goods she needs
+            # she divides the basic good in three parts, one part is used for production of each good
+            self.store[0]=(self.goodBasic/3.0)*c.sigmoidFunction(self.exponents[0])
+            self.store[1]=(self.goodBasic/3.0)*c.sigmoidFunction(self.exponents[1])
+            self.store[2]=(self.goodBasic/3.0)*c.sigmoidFunction(self.exponents[2])
+            
+            self.specialize_partial=False            
+            self.specialize_complete=False            
+            
+            # in this case the agent neither learns nor unlearns
+            
+        # if the agent has two partners, i.e. herself and one other person
+        # then partially specializes 
+        elif sum(listOf_partners)==2:
+            
+            self.store[self.myType]=(2.0*self.goodBasic/3.0)*c.sigmoidFunction(self.exponents[self.myType])
+            #print self.store[self.myType], 'primary'
+            
+            # she puts 2/3 of the basic good in producing the good she is best at             
+            self.exponents[self.myType]=self.exponents[self.myType]+(2/3)
+            
+            
+            # she puts 1/3 of the basic good into the producing the good that she cannot be get from her partner
+            for i in listOf_partners:
+                if i==False:
+                    self.store[listOf_partners.index(i)]=(self.goodBasic/3.0)*c.sigmoidFunction(self.exponents[listOf_partners.index(i)])
+                   # print 'secondary',self.store[listOf_partners.index(i)]
+
+                    # the agent becomes more efficient at producing this good
+                    self.exponents[listOf_partners.index(i)]=self.exponents[listOf_partners.index(i)]+(1/3)
+                    
+                    # the agent becomes less efficient at producing the good it does not produce
+                    goods=[0,1,2]
+                    goods.remove(listOf_partners.index(i))
+                    goods.remove(self.myType)
+                    
+                    self.exponents[goods[0]]=self.exponents[goods[0]]-1
+                    
+                    
+            # she specializes partially, not completely    
+            self.specialize_partial=True            
+            self.specialize_complete=False            
+        
+        temp=copy.copy(self.myType)
+        self.myType=self.exponents.index(max(self.exponents))
+        
+        if temp!=self.myType:
+            self.change_count+=1
+        #print 'store after production', self.store
+      
+        
+            
+    # define the fitness derived from consumption
+    def consume(self):
+        # the fitness function is defined as a product of all the goods in the store
+        # this is meant to reflect complementarities between goods in consumption,
+        # more of one good increase the value of all other good
+    
+        fitness=reduce(operator.mul, self.store, 1)
+        #print self.store, 'store'
+        #print fitness,'fitness'
+             
+        # append the list that maintains the history of fitness
+        self.fitnessHistory.append(fitness)
+        
+        # empty the store because the agent has consumed the goods she has
+        self.store=[0.0,0.0,0.0]
+        #print 'store after consumption', self.store
+                    
+    
