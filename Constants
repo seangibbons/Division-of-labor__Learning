@@ -14,8 +14,9 @@ import math
 numPlayers=200
 periods=5000
 
+eliminateNodes=0
 
-
+shockPeriod=10001
 
 typesGoods=[0,1,2]
 
