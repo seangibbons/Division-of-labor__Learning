@@ -1,0 +1,259 @@
+'''
+Version 3
+Operator 
+Division of labor
+Vipin P. Veetil
+6/16/2014
+Windows 
+Python
+'''
+
+from __future__ import division
+
+# import other files and libraries
+import constants as c
+import players as p
+import random
+import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
+
+# make an empty list of players and a list of results
+playerList = []
+# record mean fitness
+meanFitness=[]
+# record standard deviation of fitness
+sdFitness=[]
+# list of proportion of agents who specialize
+propSp_partial=[]
+propSp_complete=[]
+
+# efficiency of first good
+efficiency=[]
+
+# populate the list of players with simple players
+playerList = [p.simplePlayer() for count in xrange(c.numPlayers)]
+
+
+# make an empty graph
+G=nx.Graph()
+
+# add nodes to the graph from playerlist
+G.add_nodes_from(playerList)
+
+# add edges
+    
+def add_edge():        
+    # sample two nodes 
+    sampleTwo=random.sample(G.node, 2)
+    
+    # if neither of the nodes has two neighbors
+    # i.e. if neither of them if completely specialized
+    # then there is scope for forming a relationship
+    if len(G.neighbors(sampleTwo[0]))<2 and len(G.neighbors(sampleTwo[1]))<2:        
+        # in addition the two nodes must not be of the same type
+        if sampleTwo[0].myType!=sampleTwo[1].myType:
+            # if neither of them have any neighbors, then add a link between them
+            n0=G.neighbors(sampleTwo[0])
+            n1=G.neighbors(sampleTwo[1])
+            if len(n0)==0 and len(n1)==0:        
+                G.add_edge(sampleTwo[0], sampleTwo[1])
+            
+            # if either of them has one neighbour, then check if the neighbor is of the same type as potential partner   
+            elif len(n0)==1 and len(n1)==0:
+                if n0[0].myType!=sampleTwo[1].myType:
+                    G.add_edge(sampleTwo[0], sampleTwo[1])
+            
+            elif len(n0)==0 and len(n1)==1:
+                if sampleTwo[0].myType!=n1[0].myType:
+                    G.add_edge(sampleTwo[0], sampleTwo[1])
+            
+                    
+            elif len(n0)==1 and len(n1)==1:            
+                if n0[0].myType!=sampleTwo[1].myType and sampleTwo[0].myType!=n1[0].myType:
+                    G.add_edge(sampleTwo[0], sampleTwo[1])
+                    
+            
+            
+# ask each agent to act
+def produce():
+    # for every agent in the network
+    for i in G.node:
+        # make a list of edges and fill it by False
+        # this list is used to record the types of neighbors an agent has
+        # the 0th entry represents an neighbor of type 0
+        
+        # the code is structure this way for ease of computation given the way agents are defined in the agent file
+        edgesList=[False,False,False]
+        
+        # one's own type is always True
+        edgesList[i.myType]=True
+        
+        
+        neighbors=G.neighbors(i)
+        if len(neighbors)==1:
+            edgesList[neighbors[0].myType]=True
+        elif len(neighbors)==2:
+            edgesList[neighbors[0].myType]=True
+            edgesList[neighbors[1].myType]=True
+            
+        #ask each agent to produce
+        i.produce(edgesList)
+        
+       
+  
+def count_specialization():    
+    # create counters, to counter the number of agents who partially specialize and those who wholly specialize
+    count_partial=0.0
+    count_complete=0.0    
+    # count the number of agents who partially specialize
+    for i in G.node:
+        if i.specialize_partial==True:  
+            count_partial=count_partial+1              
+    
+      # count the number of agents who completely specialize
+    for i in G.node:            
+        if i.specialize_complete==True:
+            count_complete=count_complete+1
+            
+      # calculate the proportion of agents who partially specialize
+    prop_partial=count_partial/c.numPlayers
+    propSp_partial.append(prop_partial)
+    
+    # calculate the proportion of agents who fully specialize
+    prop_complete=count_complete/c.numPlayers
+    propSp_complete.append(prop_complete)        
+    
+    temp=[]
+    for i in G.node:
+        a=c.sigmoidFunction(i.exponents[0])
+        temp.append(a)
+    efficiency.append(np.std(temp))
+
+# once the agent finish producing, we rearrange the good depending on whether an agent has relationships with others
+def distributeGoods():
+    # go through the rearrangement procedure for each agent
+    for i in G.node:
+        #print 'before stores', i.store
+        neighbor=G.neighbors(i)               
+        
+        # if an agent has only one neighbor, i.e. only one relation
+        if len(neighbor)==1:
+            # take the good that the agent specializes in, and give half of it to the neighbor
+            neighbor[0].store[i.myType]=i.store[i.myType]/2.0
+            # and remove half of it from the agent
+            i.store[i.myType]=i.store[i.myType]/2.0
+        
+        # if an agent has two neighbors
+        # give a third of the good that the agent specializes in to each of the neighours
+        # and let the agent keep 1/3 of her production
+        if len(neighbor)==2:
+            neighbor[0].store[i.myType]=i.store[i.myType]/3.0
+            neighbor[1].store[i.myType]=i.store[i.myType]/3.0
+            i.store[i.myType]=i.store[i.myType]/3.0
+    
+        #print 'after stores', i.store
+# ask the agents to consume the goods they  have in store
+def consume():                
+    for i in G.node:
+        i.consume()
+
+
+# record the mean and standard deviation of fitness of the agents
+def recordResult():
+    # create an empty list
+    listFitness=[]  
+    # record the fitness of each agent last round
+    for i in G.node:
+        listFitness.append(i.fitnessHistory[-1])
+    # compute and record mean and standard deviation of fitness
+    mean=np.mean(listFitness)
+    sd=np.std(listFitness)
+    meanFitness.append(mean)
+    sdFitness.append(sd)
+
+
+count=0
+def shock(): 
+    select=random.sample(G.node,1)
+    for i in select:
+        neigh=G.neighbors(i)
+        if len(neigh)!=0:
+            G.remove_edge(i, neigh[0])
+        else:
+            global count
+            count+=1
+    
+# define a round 
+def round():
+    # randomly pick two agents, and ask them if they want to form a link
+    add_edge()
+    # ask each agent in the network to produce, change its type if necessary 
+    produce()
+    # count specialization
+    count_specialization()
+    # distribute goods
+    distributeGoods()
+    # ask agents to consume
+    consume()
+    # record results 
+    recordResult()
+    shock()
+    
+
+
+
+
+# define a game
+def game():
+    # play the round for a number of periods
+    for i in range(c.periods):        
+        round()
+        # shock the system at a certain period by eliminating a certain number of nodes
+        if i==c.shockPeriod:
+            select=random.sample(G.node,c.eliminateNodes)
+           # print select
+            G.remove_nodes_from(select)
+        print i
+
+# play the game
+game()
+
+count=0
+for i in G.node:
+    temp=i.change_count
+    count+=temp
+    
+print count, 'type change'
+
+#print max(exponents)
+
+#print c.sigmoidFunction(max(exponents))
+# draw the graph and show it
+nx.draw(G)
+plt.show()
+
+
+plt.plot(meanFitness,'.')
+plt.xlabel('Periods')
+plt.ylabel('Mean Fitness')
+plt.show()
+
+
+
+plt.plot(sdFitness,'.')
+plt.xlabel('Periods')
+plt.ylabel('Standard Deviation Fitness')
+plt.show()
+
+plt.plot(propSp_partial,'.')
+plt.plot(propSp_complete,'.')
+plt.xlabel('Periods')
+plt.ylabel('Proportion of Agents who specialize')
+plt.show()
+
+#plt.plot(efficiency,'.')
+#plt.xlabel('Periods')
+#plt.ylabel('Variance in Efficiency')
+#plt.show()
+
