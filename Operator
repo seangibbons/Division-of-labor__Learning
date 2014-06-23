@@ -252,6 +252,21 @@ plt.xlabel('Periods')
 plt.ylabel('Proportion of Agents who specialize')
 plt.show()
 
+# plot degree distribution
+degree_sequence=sorted(nx.degree(G).values(),reverse=True)
+dmax=max(degree_sequence)
+plt.loglog(degree_sequence,'b-',marker='o')
+plt.title("Degree rank plot")
+plt.ylabel("degree")
+plt.xlabel("rank")
+plt.show()
+
+#draw giant compnent
+Gcc=nx.connected_component_subgraphs(G)
+G0=Gcc[0]
+nx.draw(G0)
+plt.show()
+
 #plt.plot(efficiency,'.')
 #plt.xlabel('Periods')
 #plt.ylabel('Variance in Efficiency')
